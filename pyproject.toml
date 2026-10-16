@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-build"
+dynamic = ["version"]
+description = "A fair, machine-wide queue for heavy builds: a few at once, one per project, first come first served, and nothing left running when interrupted. No daemon, no dependencies."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Michael Berardi" }]
+keywords = ["build", "queue", "concurrency", "semaphore", "ci", "ai-agents", "monorepo", "cli"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/michael-berardi/smart-build"
+Issues = "https://github.com/michael-berardi/smart-build/issues"
+Changelog = "https://github.com/michael-berardi/smart-build/blob/main/CHANGELOG.md"
+
+[project.scripts]
+smart-build = "smart_build.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "smart_build.__version__" }
