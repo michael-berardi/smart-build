@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-10-16)
+
+- Agent skill (`skills/smart-build/SKILL.md`) and an `AGENTS.md` / `CLAUDE.md` snippet in the README, so coding
+  agents know when to use Smart Build, how to install it if it is missing, and how to read waits and exit codes.
+- `uv tool install` and `uvx` documented as install routes alongside `pipx`.
+
 ## 0.1.0 (2026-10-16)
 
 First public release.
