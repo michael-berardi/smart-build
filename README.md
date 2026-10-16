@@ -24,6 +24,7 @@ Requires Python 3.10 or newer on macOS or Linux.
 
 ```sh
 pipx install "git+https://github.com/michael-berardi/smart-build@v0.1.0"
+# or: uv tool install "git+https://github.com/michael-berardi/smart-build@v0.1.0"
 smart-build --version
 ```
 
@@ -108,6 +109,27 @@ separately.
 With `--coalesce`, every build's output goes through a pipe and its stdin is closed, even when nobody joins it,
 because a later caller may still join. Programs that color only on a terminal print plain text, and the build cannot
 prompt. Leave it off for interactive work.
+
+## Using it with AI agents
+
+Agents need two things: the tool installed, and a rule telling them when to use it.
+
+- **Skill:** copy [`skills/smart-build`](skills/smart-build/SKILL.md) into your agent's skills folder (for Claude Code,
+  `~/.claude/skills/smart-build/`). It covers when to use the tool, how to install it if missing, waits and exit
+  codes.
+- **Or a few lines in `AGENTS.md` / `CLAUDE.md`:**
+
+```markdown
+## Heavy commands
+Run builds, full test suites, large type checks, packaging and deploys through the machine-wide queue:
+`smart-build -- <command>` (never dev servers or watchers). If `smart-build --version` fails, install it with
+`uv tool install "git+https://github.com/michael-berardi/smart-build@v0.1.0"` (Python 3.10+). Pass `--max-wait`
+shorter than your tool timeout; exit 75 means no turn yet. `smart-build status` shows what is running.
+```
+
+`uv tool install` and `pipx install` both work with the same URL, and
+`uvx --from "git+https://github.com/michael-berardi/smart-build@v0.1.0" smart-build -- <cmd>` runs it without
+installing.
 
 ## Embedding
 
