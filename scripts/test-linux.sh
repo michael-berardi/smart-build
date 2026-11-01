@@ -18,6 +18,7 @@ fi
 for image in python:3.10-slim python:3.13-slim; do
   echo "== $image"
   # The sources go in through stdin, so this works whatever folders the Docker VM shares.
-  COPYFILE_DISABLE=1 tar --no-xattrs -C "$root" -cf - src tests | docker run --rm -i "$image" sh -c \
+  # README.md, docs, skills and bench come along because tests/test_neutrality.py scans them.
+  COPYFILE_DISABLE=1 tar --no-xattrs -C "$root" -cf - src tests README.md docs skills bench | docker run --rm -i "$image" sh -c \
     'mkdir /w && tar -xf - -C /w && cd /w && python3 -W error::ResourceWarning -m unittest discover -s tests'
 done

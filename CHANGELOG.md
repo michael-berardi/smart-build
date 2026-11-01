@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (2026-11-01)
+
+- Neutrality: install instructions in the README and agent skill use a neutral `your-github-username` placeholder
+  instead of a person's GitHub handle, so the shipped text names no person or project. The tool itself remains a
+  generic build queue with no built-in model, provider or fallback choice.
+- New `tests/test_neutrality.py`, modelled on Carl's neutrality test, scans the shipped source, skill, docs,
+  benchmark and README for model ids and personal names and fails if one returns. LICENSE and package metadata
+  keep legal attribution and are excluded, as are tests' synthetic fixtures.
+- The Linux container test script now copies the shipped docs and benchmark alongside `src` and `tests`, so the
+  neutrality scan runs in the container suite too.
+
 ## 0.1.1 (2026-10-16)
 
 - Agent skill (`skills/smart-build/SKILL.md`) and an `AGENTS.md` / `CLAUDE.md` snippet in the README, so coding
