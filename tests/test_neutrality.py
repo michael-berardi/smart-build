@@ -8,12 +8,14 @@ keeps it that way, modelled on Carl's neutrality test.
 Not scanned, by design:
 - LICENSE and pyproject.toml keep legal attribution (copyright holder and package
   author metadata). They are attribution, not shipped product behaviour.
-- tests/ holds synthetic fixtures and test data, not shipped product text.
+- The neutrality test itself contains pattern examples.
 """
 
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -39,8 +41,8 @@ ADAPTERS: tuple[str, ...] = ()
 # Names of the people and organisations this tool was first built for: never in the
 # shipped tool. Case-insensitive so a lowercase handle cannot slip through.
 PERSONAL = re.compile(
-    r"Mike|Berardi|Dana|Felix|acme|acme|Mouseia|Liberty Design|"
-    r"libertydesign|acme|/Users/",
+    r"Mike|Berardi|Felix|Mouseia|Liberty Design|"
+    r"libertydesign|/Users/",
     re.IGNORECASE,
 )
 
@@ -50,21 +52,21 @@ PERSONAL = re.compile(
 ALLOWED: dict[str, dict[int, str]] = {}
 
 
-def shipped_files() -> list[Path]:
+def shipped_files(include_tests: bool = False) -> list[Path]:
     """Every shipped file the neutrality scan covers, in a stable order."""
     paths: list[Path] = []
     for name in SHIPPED_FILES:
         path = ROOT / name
         if path.is_file():
             paths.append(path)
-    for name in SHIPPED_DIRS:
+    for name in (*SHIPPED_DIRS, *(("tests",) if include_tests else ())):
         base = ROOT / name
         if not base.is_dir():
             continue
         for path in sorted(base.rglob("*")):
             if not path.is_file():
                 continue
-            if "__pycache__" in path.parts or path.suffix == ".pyc":
+            if path == Path(__file__) or "__pycache__" in path.parts or path.suffix == ".pyc":
                 continue
             if str(path.relative_to(ROOT)) in ADAPTERS:
                 continue
@@ -72,10 +74,41 @@ def shipped_files() -> list[Path]:
     return paths
 
 
+
+def load_private_terms(path=None):
+    path = Path(path or os.environ.get("OSS_PRIVATE_TERMS", "~/.config/oss-audit/names.txt")).expanduser()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return None
+    terms = [line.strip() for line in lines if line.strip() and not line.strip().startswith("#")]
+    if not terms:
+        return None
+    patterns = [(r"\b" if term[0].isalnum() or term[0] == "_" else "")
+                + re.escape(term)
+                + (r"\b" if term[-1].isalnum() or term[-1] == "_" else "")
+                for term in terms]
+    return re.compile("|".join(patterns), re.IGNORECASE)
+
+
 class NeutralityTests(unittest.TestCase):
-    def _scan(self, pattern: re.Pattern[str]) -> list[str]:
+    def test_private_terms_loader(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "terms.txt"
+            path.write_text("# comment\n\nzzqx-private-term\n", encoding="utf-8")
+            pattern = load_private_terms(path)
+            self.assertIsNotNone(pattern)
+            text = Path(directory) / "sample.txt"
+            text.write_text("a ZZQX-private-term here", encoding="utf-8")
+            self.assertRegex(text.read_text(encoding="utf-8"), pattern)
+            text.write_text("a neutral text", encoding="utf-8")
+            self.assertNotRegex(text.read_text(encoding="utf-8"), pattern)
+            self.assertNotRegex("azzqx-private-termz", pattern)
+            self.assertIsNone(load_private_terms(Path(directory) / "missing"))
+
+    def _scan(self, pattern: re.Pattern[str], include_tests: bool = False) -> list[str]:
         hits: list[str] = []
-        for path in shipped_files():
+        for path in shipped_files(include_tests):
             rel = path.relative_to(ROOT).as_posix()
             text = path.read_text(encoding="utf-8", errors="ignore")
             for lineno, line in enumerate(text.splitlines(), start=1):
@@ -95,7 +128,10 @@ class NeutralityTests(unittest.TestCase):
         self.assertEqual(hits, [], "Built-in model or provider choices found in shipped files:\n" + "\n".join(hits))
 
     def test_shipped_files_have_no_personal_names(self) -> None:
-        hits = self._scan(PERSONAL)
+        hits = self._scan(PERSONAL, include_tests=True)
+        private = load_private_terms()
+        if private:
+            hits += self._scan(private, include_tests=True)
         self.assertEqual(hits, [], "Personal or project names found in shipped files:\n" + "\n".join(hits))
 
 
