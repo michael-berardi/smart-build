@@ -215,3 +215,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security problems as described in
 ## License
 
 MIT
+
+---
+
+Part of [Pareto Cybernetics](https://paretocybernetics.com/projects/smart-build/): free, private, open-source tools for working with AI agents.
