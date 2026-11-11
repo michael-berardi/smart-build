@@ -27,7 +27,8 @@ fi
 
 scripts/build-release.sh "$ROOT/dist/release"
 
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/smart-build-test.XXXXXX")
+# The workspace lives under dist/ (gitignored): the Docker VM shares the checkout's path, not $TMPDIR.
+WORK=$(mktemp -d "$ROOT/dist/test-install.XXXXXX")
 SERVER_PID=""
 cleanup() {
   if [ -n "$SERVER_PID" ]; then
