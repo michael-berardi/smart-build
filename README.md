@@ -20,7 +20,36 @@ It is one small Python package with no dependencies, for macOS and Linux.
 
 ## Install
 
-Requires Python 3.10 or newer on macOS or Linux.
+One step on macOS and Linux (needs Python 3.10 or newer; the installer never uses sudo and never edits your
+shell profile):
+
+```sh
+curl -fsSL https://github.com/your-github-username/smart-build/releases/latest/download/install.sh | sh
+smart-build --version
+```
+
+Replace `your-github-username` with this repository's GitHub owner, shown in the address bar. The installer
+downloads the release wheel, checks its SHA-256, and installs it into a private venv at `~/.smart-build/venv`,
+with the command at `~/.local/bin/smart-build` (it prints one line telling you to add that folder to your PATH
+when it is not there). Smart Build has no dependencies, so nothing else is fetched. Re-run the same line to
+update. To remove it, delete `~/.smart-build` and `~/.local/bin/smart-build`. If Python 3.10+ is missing, the
+installer names the one command that installs it and stops.
+
+Windows: Smart Build needs POSIX file locks and process-group signals, which Python on Windows does not
+provide, so there is no native Windows build; it runs inside WSL. The Windows installer explains this, prints
+the one-step WSL command, and exits without installing anything:
+
+```powershell
+irm https://github.com/your-github-username/smart-build/releases/latest/download/install.ps1 | iex
+```
+
+With WSL set up (`wsl --install -d Ubuntu`, restart, open Ubuntu once), the whole install is one line:
+
+```powershell
+wsl -e sh -c "curl -fsSL https://github.com/your-github-username/smart-build/releases/latest/download/install.sh | sh"
+```
+
+Manual route (macOS or Linux with Python 3.10+):
 
 ```sh
 pipx install "git+https://github.com/your-github-username/smart-build@v0.2.0"
@@ -28,8 +57,7 @@ pipx install "git+https://github.com/your-github-username/smart-build@v0.2.0"
 smart-build --version
 ```
 
-Replace `your-github-username` with this repository's GitHub owner, shown in the address bar. Or run it from a
-checkout with no install: `PYTHONPATH=src python3 -m smart_build --help`.
+Or run it from a checkout with no install: `PYTHONPATH=src python3 -m smart_build --help`.
 
 ## Use
 
@@ -207,6 +235,7 @@ for an hour so that followers can replay it. Nothing else is stored.
 ```sh
 PYTHONPATH=src python3 -m unittest discover -s tests   # macOS or Linux
 ./scripts/test-linux.sh                                # the same suite in Linux containers (needs Docker)
+./scripts/test-install.sh                              # installer tests: macOS, Ubuntu container, PowerShell 7
 python3 bench/compare.py --baseline "other-queue --project {project} --"
 ```
 

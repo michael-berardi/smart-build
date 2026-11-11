@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- One-step installers. `scripts/install.sh` (macOS and Linux) downloads the release wheel, verifies its
+  SHA-256 before installing anything, and installs it into a private venv under `~/.smart-build` with the
+  `smart-build` command in `~/.local/bin`. No sudo, no shell profile edits, no dependencies fetched; re-running
+  updates in place, and it finishes by running `smart-build --version`.
+- Windows: Smart Build needs POSIX file locks and process-group signals, so there is no native Windows build.
+  `scripts/install.ps1` explains that it runs under WSL, prints the one-step WSL command, and exits non-zero.
+- `scripts/build-release.sh` builds the release assets (wheel, both installers, SHA256SUMS) deterministically;
+  `scripts/test-install.sh` tests the installers on macOS, in an Ubuntu 24.04 container, and under PowerShell 7.
+- README: the Install section leads with the one-liners and covers what is installed, where, updating and removing.
+
 ## 0.2.0 (2026-11-01)
 
 - Neutrality: install instructions in the README and agent skill use a neutral `your-github-username` placeholder
