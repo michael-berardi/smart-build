@@ -66,6 +66,9 @@ main() {
 
   say "Installing Smart Build $VERSION into $HOME_DIR ..."
   mkdir -p "$HOME_DIR" "$BIN_DIR" || die "cannot create $HOME_DIR or $BIN_DIR"
+  # Physical path: venv script shebangs embed the resolved path (macOS /var -> /private/var), so the
+  # staging path we rewrite below must be in the same form.
+  HOME_DIR=$(cd "$HOME_DIR" && pwd -P)
   VENV="$HOME_DIR/venv"
   # Stage on the same filesystem as the final venv so the move into place is a rename.
   STAGE="$HOME_DIR/.venv.new.$$"
