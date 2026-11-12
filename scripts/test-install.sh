@@ -63,6 +63,27 @@ case "$V" in smart-build\ *) ;; *) fail "unexpected version output: $V" ;; esac
 HOME="$TH" SMART_BUILD_RELEASE_BASE="$BASE_GOOD" /bin/sh scripts/install.sh
 "$TH/.local/bin/smart-build" --version >/dev/null || fail "the command is broken after a re-run"
 
+say "== macOS: home path with | & and backslash, marker shim, foreign shim left alone, 0.3.0 shim adopted"
+TH5="$WORK/home-weird"; mkdir -p "$TH5"
+WEIRD="$TH5/a|b&c\\d"
+HOME="$TH5" SMART_BUILD_HOME="$WEIRD/tool" SMART_BUILD_BIN_DIR="$WEIRD/bin" SMART_BUILD_RELEASE_BASE="$BASE_GOOD" /bin/sh scripts/install.sh
+"$WEIRD/bin/smart-build" --version >/dev/null || fail "install under a path with | & and backslash is broken"
+"$WEIRD/tool/venv/bin/smart-build" --version >/dev/null || fail "venv script shebang is broken under a special path"
+grep -qF "# smart-build-installer-shim" "$WEIRD/bin/smart-build" || fail "the shim carries no marker"
+HOME="$TH5" SMART_BUILD_HOME="$WEIRD/tool" SMART_BUILD_BIN_DIR="$WEIRD/bin" SMART_BUILD_RELEASE_BASE="$BASE_GOOD" /bin/sh scripts/install.sh >/dev/null \
+  || fail "re-running over our own marked shim failed"
+# 0.3.0 shim: no marker, execs into the tool home
+VREAL=$(cd "$WEIRD/tool" && pwd -P)
+printf '#!/bin/sh\nexec "%s/venv/bin/smart-build" "$@"\n' "$VREAL" > "$WEIRD/bin/smart-build"
+HOME="$TH5" SMART_BUILD_HOME="$WEIRD/tool" SMART_BUILD_BIN_DIR="$WEIRD/bin" SMART_BUILD_RELEASE_BASE="$BASE_GOOD" /bin/sh scripts/install.sh >/dev/null
+grep -qF "# smart-build-installer-shim" "$WEIRD/bin/smart-build" || fail "a 0.3.0 shim was not adopted"
+# foreign file
+printf '#!/bin/sh\necho mine\n' > "$WEIRD/bin/smart-build"
+out=$(HOME="$TH5" SMART_BUILD_HOME="$WEIRD/tool" SMART_BUILD_BIN_DIR="$WEIRD/bin" SMART_BUILD_RELEASE_BASE="$BASE_GOOD" /bin/sh scripts/install.sh 2>&1) \
+  || fail "a foreign smart-build made the install fail: $out"
+case "$out" in *"Left "*"alone"*) ;; *) fail "no one-line notice for a foreign smart-build: $out" ;; esac
+[ "$("$WEIRD/bin/smart-build")" = "mine" ] || fail "a foreign smart-build was overwritten"
+
 say "== macOS: corrupted wheel refused, nothing installed"
 TH2="$WORK/home-mac-bad"; mkdir -p "$TH2"
 if out=$(HOME="$TH2" SMART_BUILD_RELEASE_BASE="$BASE_BAD" /bin/sh scripts/install.sh 2>&1); then
@@ -144,6 +165,17 @@ if out=$(docker run --rm -v "$ROOT/dist/release:/rel:ro" "$PWSH_IMAGE" pwsh -NoP
 fi
 case "$out" in *WSL*) ;; *) fail "install.ps1 does not mention WSL: $out" ;; esac
 case "$out" in *install.sh*) ;; *) fail "install.ps1 does not print the WSL one-liner: $out" ;; esac
+
+say "== install.ps1 under iex: the session survives, nothing leaks"
+out=$(docker run --rm -v "$ROOT/dist/release:/rel:ro" "$PWSH_IMAGE" pwsh -NoProfile -Command '
+  $before = $ErrorActionPreference
+  try { Invoke-Expression (Get-Content /rel/install.ps1 -Raw) } catch { Write-Host "caught: $($_.Exception.Message)" }
+  if ($ErrorActionPreference -ne $before) { Write-Host "LEAK: ErrorActionPreference changed" }
+  Write-Host "SESSION-ALIVE"
+' 2>&1) || fail "the session did not survive install.ps1 under iex: $out"
+case "$out" in *SESSION-ALIVE*) ;; *) fail "the session did not survive install.ps1 under iex: $out" ;; esac
+case "$out" in *LEAK*) fail "install.ps1 leaked into the session: $out" ;; esac
+case "$out" in *"caught: Smart Build has no native Windows build"*) ;; *) fail "install.ps1 did not throw the expected error: $out" ;; esac
 
 say "== PSScriptAnalyzer (skipped when it does not install)"
 if ! docker run --rm -v "$ROOT/dist/release:/rel:ro" "$PWSH_IMAGE" pwsh -NoProfile -Command '

@@ -52,8 +52,8 @@ wsl -e sh -c "curl -fsSL https://github.com/your-github-username/smart-build/rel
 Manual route (macOS or Linux with Python 3.10+):
 
 ```sh
-pipx install "git+https://github.com/your-github-username/smart-build@v0.3.0"
-# or: uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.0"
+pipx install "git+https://github.com/your-github-username/smart-build@v0.3.1"
+# or: uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.1"
 smart-build --version
 ```
 
@@ -152,12 +152,12 @@ Agents need two things: the tool installed, and a rule telling them when to use 
 ## Heavy commands
 Run builds, full test suites, large type checks, packaging and deploys through the machine-wide queue:
 `smart-build -- <command>` (never dev servers or watchers). If `smart-build --version` fails, install it with
-`uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.0"` (Python 3.10+). Pass `--max-wait`
+`uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.1"` (Python 3.10+). Pass `--max-wait`
 shorter than your tool timeout; exit 75 means no turn yet. `smart-build status` shows what is running.
 ```
 
 `uv tool install` and `pipx install` both work with the same URL, and
-`uvx --from "git+https://github.com/your-github-username/smart-build@v0.3.0" smart-build -- <cmd>` runs it without
+`uvx --from "git+https://github.com/your-github-username/smart-build@v0.3.1" smart-build -- <cmd>` runs it without
 installing.
 
 ## Embedding

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 (2026-11-11)
+
+- Windows: `install.ps1` no longer ends with `exit 1`, which closed the user's own PowerShell window under
+  `irm ... | iex` before the WSL instructions could be read. It now throws an error (still non-zero under
+  `-File`), and its body is a function so nothing is left behind in the session.
+- `install.sh`: a home folder containing `|`, `&` or a backslash no longer breaks the rewrite of the venv script
+  paths; the paths are escaped first.
+- `install.sh` never overwrites a `smart-build` in the bin folder that it did not write (its shim now carries a
+  marker comment; a 0.3.0 shim pointing into the tool home counts as its own). It says so in one line instead.
+
 ## 0.3.0 (2026-11-11)
 
 - One-step installers. `scripts/install.sh` (macOS and Linux) downloads the release wheel, verifies its
