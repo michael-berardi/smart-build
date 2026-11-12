@@ -11,19 +11,19 @@ once machine-wide, one per repo, in arrival order. Output and exit status pass t
 ## Setup (once per machine)
 
 ```sh
-smart-build --version          # expect: smart-build 0.2.0 or newer
+smart-build --version          # expect: smart-build 0.3.0 or newer
 ```
 
 If it is missing, install it (needs Python 3.10+ on macOS or Linux; no other dependencies):
 
 ```sh
-uv tool install "git+https://github.com/your-github-username/smart-build@v0.2.0"
-# or: pipx install "git+https://github.com/your-github-username/smart-build@v0.2.0"
+uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.0"
+# or: pipx install "git+https://github.com/your-github-username/smart-build@v0.3.0"
 ```
 
 Replace `your-github-username` with the repository's GitHub owner (the address bar of the README shows it).
 
-Without a permanent install: `uvx --from "git+https://github.com/your-github-username/smart-build@v0.2.0" smart-build -- <cmd>`.
+Without a permanent install: `uvx --from "git+https://github.com/your-github-username/smart-build@v0.3.0" smart-build -- <cmd>`.
 If you cannot install it, run the command directly and say so; do not invent a substitute queue.
 
 ## Use

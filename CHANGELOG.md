@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-11)
 
 - One-step installers. `scripts/install.sh` (macOS and Linux) downloads the release wheel, verifies its
   SHA-256 before installing anything, and installs it into a private venv under `~/.smart-build` with the
