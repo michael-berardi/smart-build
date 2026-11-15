@@ -46,6 +46,8 @@ class Harness(unittest.TestCase):
     def project(self, name: str) -> Path:
         path = self.work / name
         path.mkdir(exist_ok=True)
+        # Keep fixtures independent even when TMPDIR is inside a Git checkout.
+        (path / ".git").mkdir(exist_ok=True)
         return path
 
     def start(self, *args: str, cwd: Path | None = None, env: dict | None = None, **kwargs) -> subprocess.Popen:
@@ -192,7 +194,7 @@ class ProjectTests(Harness):
 
     def test_subdirectories_of_one_git_work_tree_are_one_project(self):
         repo = self.project("repo")
-        (repo / ".git").mkdir()  # all smart-build looks for; a worktree's .git file is tested below
+        (repo / ".git").mkdir(exist_ok=True)  # all smart-build looks for; a worktree's .git file is tested below
         (repo / "app").mkdir()
         log = self.tmp / "log"
         a = self.start("--slots", "4", "--", *self.job(log, "a", 0.5), cwd=repo)
@@ -203,6 +205,7 @@ class ProjectTests(Harness):
 
     def test_a_git_worktree_file_marks_the_work_tree(self):
         tree = self.project("worktree")
+        (tree / ".git").rmdir()
         (tree / ".git").write_text("gitdir: /elsewhere/.git/worktrees/x\n")
         (tree / "pkg" / "deep").mkdir(parents=True)
         keys = resolve_project(str(tree / "pkg" / "deep"), None)
@@ -709,7 +712,7 @@ class SafetyTests(Harness):
     def test_an_earlier_waiter_never_deadlocks_on_a_key_a_later_build_holds(self):
         state = queue.prepare_state_dir(self.state)
         repo = self.project("repo")
-        (repo / ".git").mkdir()
+        (repo / ".git").mkdir(exist_ok=True)
         (repo / "app").mkdir()
         keys = resolve_project(str(repo / "app"), None)
         first, second = (state / "projects" / queue.project_lock_name(k) for k in keys.keys)
