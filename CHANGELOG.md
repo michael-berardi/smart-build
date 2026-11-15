@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 (2026-11-15)
+
+- Stats now averages the middle pair for an even number of waits.
+- `stats --since 0` excludes older events instead of returning all history.
+- Tests isolate project fixtures even when temporary directories are inside a checkout.
+- README uses a verified checkout install and clarifies per-user scope and process cleanup limits.
+
 ## 0.3.1 (2026-11-11)
 
 - Windows: `install.ps1` no longer ends with `exit 1`, which closed the user's own PowerShell window under

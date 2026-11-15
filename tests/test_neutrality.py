@@ -46,6 +46,14 @@ PERSONAL = re.compile(
     re.IGNORECASE,
 )
 
+# Only this repository's canonical HTTPS URL is public product identity.
+# Require a URL boundary so lookalike repositories and hosts remain forbidden.
+OWN_REPO_URL = re.compile(
+    r"(?<![\w./@-])https://github\.com/michael-berardi/smart-build"
+    r"(?=$|[/@\s\"'<>`)#?])"
+)
+
+
 # Documented allowlist: {relative path: {line number: reason}}. Empty today; any
 # entry added later must say why the match is acceptable (for example a product's
 # technical identity such as a bundle id).
@@ -92,6 +100,18 @@ def load_private_terms(path=None):
 
 
 class NeutralityTests(unittest.TestCase):
+    def test_own_repository_url_exception_is_narrow(self):
+        base = "https://github.com/michael-berardi/smart-build"
+        for suffix in ("", "/releases/latest/download/install.sh", "@v0.3.2"):
+            self.assertNotRegex(OWN_REPO_URL.sub("", base + suffix), PERSONAL)
+        for text in (
+            base + "-other", base + ".evil", base.replace("smart-build", "other"),
+            base.replace("github.com", "github.com.evil"),
+            "https://evil.example/" + base,
+            base + " Berardi", "Michael Berardi",
+        ):
+            self.assertRegex(OWN_REPO_URL.sub("", text), PERSONAL)
+
     def test_private_terms_loader(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "terms.txt"
@@ -114,7 +134,8 @@ class NeutralityTests(unittest.TestCase):
             for lineno, line in enumerate(text.splitlines(), start=1):
                 if lineno in ALLOWED.get(rel, {}):
                     continue
-                for match in pattern.finditer(line):
+                scanned = OWN_REPO_URL.sub("", line)
+                for match in pattern.finditer(scanned):
                     hits.append(f"{rel}:{lineno}: {match.group(0)!r} in {line.strip()[:120]}")
         return hits
 

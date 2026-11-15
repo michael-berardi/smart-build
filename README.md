@@ -9,28 +9,46 @@ Windows users need WSL.
 
 ## Install
 
-From a downloaded or cloned checkout, create a private environment and install:
+On macOS or Linux (including WSL):
+
+```sh
+curl -fsSL https://github.com/michael-berardi/smart-build/releases/latest/download/install.sh | sh
+```
+
+The installer verifies the release wheel and creates a private venv. Re-run to
+update; follow its PATH instructions. See [location overrides](scripts/install.sh).
+
+On Windows, this PowerShell command prints WSL setup instructions and returns an
+error; it does not install a native Windows build:
+
+```powershell
+irm https://github.com/michael-berardi/smart-build/releases/latest/download/install.ps1 | iex
+```
+
+Or install the pinned version with uv or pipx:
+
+```sh
+uv tool install "git+https://github.com/michael-berardi/smart-build@v0.3.2"
+# or:
+pipx install "git+https://github.com/michael-berardi/smart-build@v0.3.2"
+```
+
+### From source
+
+From a downloaded or cloned checkout:
 
 ```sh
 python3 -m venv .venv && .venv/bin/python -m pip install .
-.venv/bin/smart-build --version
-.venv/bin/smart-build -- python3 -c 'print("build complete")'
+. .venv/bin/activate
 ```
 
-Use `.venv/bin/smart-build` below, or activate the environment with
-`. .venv/bin/activate`. Remove `.venv` to uninstall.
-The build backend may require network access during installation.
-
-Release assets also include `install.sh`, `install.ps1`, a wheel and `SHA256SUMS`.
-The shell installer downloads and verifies the wheel and creates a private venv;
-re-running it updates the install. The PowerShell script only explains the WSL route
-and returns an error. See [the installer](scripts/install.sh) for location overrides.
-
+The build backend may require network access. Remove `.venv` to uninstall.
 Without installing: `PYTHONPATH=src python3 -m smart_build --help`.
 
 ## Use
 
 ```sh
+smart-build -- python3 -c 'print("build complete")'
 smart-build -- npm run build
 smart-build -- cargo build --release
 smart-build --weight 2 --timeout 30m -- ./scripts/release.sh
@@ -145,3 +163,7 @@ location. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 ## License
 
 MIT
+
+---
+
+Part of [Pareto Cybernetics](https://paretocybernetics.com/projects/smart-build/): free, private, open-source tools for working with AI agents.
