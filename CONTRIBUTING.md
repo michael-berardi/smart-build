@@ -7,8 +7,8 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 ./scripts/test-linux.sh   # the same suite on Linux, in Docker
 ```
 
-The tests start real processes and take real locks in a temporary folder. Nothing outside it is read or written.
-They take about 30 seconds.
+The tests start real processes and take real locks in a temporary folder. The optional neutrality audit reads `OSS_PRIVATE_TERMS` when configured.
+Timing depends on the host.
 
 ## Changes
 

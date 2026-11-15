@@ -8,6 +8,7 @@ import os
 import re
 import shlex
 import signal
+import statistics
 import sys
 import time
 from pathlib import Path
@@ -451,7 +452,7 @@ def status(state: Path, as_json: bool) -> int:
 
 
 def stats(state: Path, as_json: bool, since: float | None) -> int:
-    cutoff = time.time() - since if since else 0
+    cutoff = time.time() - since if since is not None else 0
     finished = [e for e in read_events(state) if e.get("event") == "finished" and e.get("time", 0) >= cutoff and not e.get("dry_run")]
     waits = sorted(float(e.get("waited", 0)) for e in finished)
     waited = [w for w in waits if w >= 1]
@@ -469,7 +470,7 @@ def stats(state: Path, as_json: bool, since: float | None) -> int:
         "failed": failed,
         "shared": shared,
         "waited": len(waited),
-        "waitMedian": percentile(waited, 0.5),
+        "waitMedian": statistics.median(waited) if waited else 0.0,
         "waitP90": percentile(waited, 0.9),
         "waitTotal": sum(waits),
         "busiest": sorted(projects.items(), key=lambda item: -item[1])[:5],

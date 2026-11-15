@@ -1,63 +1,32 @@
 # Smart Build
 
-Run five builds at once on a laptop and they all get slower. Run twenty, which is what a few AI coding agents in
-parallel will do, and the machine starts swapping. Two builds of the same checkout at the same time can also corrupt
-each other's output.
+A per-user queue for heavy builds and tests on macOS and Linux. Use it when several
+terminals or coding agents share a machine: cap concurrent builds, serialize each
+Git work tree, and share identical queued commands with `--coalesce`.
 
-Smart Build puts every heavy command on the machine in one fair queue. Prefix a build, test or deploy with
-`smart-build --` and it:
-
-- runs only a few builds at once across the whole machine (worked out from your CPUs and memory);
-- runs one build per project at a time, keyed on the Git work tree, so a monorepo's apps never build over each other;
-- starts waiting builds in the order they arrived;
-- holds a new build while memory is short and another build is running;
-- runs an identical build only once when two callers queue it (`--coalesce`);
-- stops the whole command tree on Ctrl-C, SIGTERM or a timeout before the next build gets its slot, and within
-  moments if Smart Build itself is killed.
-
-There is no daemon and no setup. The queue is a folder of lock files, so a crashed build never leaves a slot held.
-It is one small Python package with no dependencies, for macOS and Linux.
+Python 3.10+; no runtime dependencies or daemon. Commands you do not wrap are not queued.
+Windows users need WSL.
 
 ## Install
 
-One step on macOS and Linux (needs Python 3.10 or newer; the installer never uses sudo and never edits your
-shell profile):
+From a downloaded or cloned checkout, create a private environment and install:
 
 ```sh
-curl -fsSL https://github.com/your-github-username/smart-build/releases/latest/download/install.sh | sh
-smart-build --version
+python3 -m venv .venv && .venv/bin/python -m pip install .
+.venv/bin/smart-build --version
+.venv/bin/smart-build -- python3 -c 'print("build complete")'
 ```
 
-Replace `your-github-username` with this repository's GitHub owner, shown in the address bar. The installer
-downloads the release wheel, checks its SHA-256, and installs it into a private venv at `~/.smart-build/venv`,
-with the command at `~/.local/bin/smart-build` (it prints one line telling you to add that folder to your PATH
-when it is not there). Smart Build has no dependencies, so nothing else is fetched. Re-run the same line to
-update. To remove it, delete `~/.smart-build` and `~/.local/bin/smart-build`. If Python 3.10+ is missing, the
-installer names the one command that installs it and stops.
+Use `.venv/bin/smart-build` below, or activate the environment with
+`. .venv/bin/activate`. Remove `.venv` to uninstall.
+The build backend may require network access during installation.
 
-Windows: Smart Build needs POSIX file locks and process-group signals, which Python on Windows does not
-provide, so there is no native Windows build; it runs inside WSL. The Windows installer explains this, prints
-the one-step WSL command, and exits without installing anything:
+Release assets also include `install.sh`, `install.ps1`, a wheel and `SHA256SUMS`.
+The shell installer downloads and verifies the wheel and creates a private venv;
+re-running it updates the install. The PowerShell script only explains the WSL route
+and returns an error. See [the installer](scripts/install.sh) for location overrides.
 
-```powershell
-irm https://github.com/your-github-username/smart-build/releases/latest/download/install.ps1 | iex
-```
-
-With WSL set up (`wsl --install -d Ubuntu`, restart, open Ubuntu once), the whole install is one line:
-
-```powershell
-wsl -e sh -c "curl -fsSL https://github.com/your-github-username/smart-build/releases/latest/download/install.sh | sh"
-```
-
-Manual route (macOS or Linux with Python 3.10+):
-
-```sh
-pipx install "git+https://github.com/your-github-username/smart-build@v0.3.1"
-# or: uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.1"
-smart-build --version
-```
-
-Or run it from a checkout with no install: `PYTHONPATH=src python3 -m smart_build --help`.
+Without installing: `PYTHONPATH=src python3 -m smart_build --help`.
 
 ## Use
 
@@ -65,29 +34,19 @@ Or run it from a checkout with no install: `PYTHONPATH=src python3 -m smart_buil
 smart-build -- npm run build
 smart-build -- cargo build --release
 smart-build --weight 2 --timeout 30m -- ./scripts/release.sh
+smart-build status
+smart-build stats --since 24h
 ```
 
-Output and exit status pass straight through. On a terminal the command gets the foreground, so prompts, Ctrl-C and
-Ctrl-\\ reach it directly and Ctrl-Z suspends the whole job. Signals you ignore (`nohup`, `&` in a script) stay
-ignored. While it waits, Smart Build says why on stderr:
+Output and exit status pass through. Status lists running and waiting builds;
+stats summarizes completed builds and waits of at least one second. Both accept
+`--json`. An even-sized set of waits uses the average of its middle pair as the median.
+`--since 0` includes no events older than the current instant.
 
-```text
-smart-build: waiting: all 2 slots busy (running: web, api)
-smart-build: starting after 41s (slot 1 of 2)
-```
-
-See what is running and waiting:
-
-```text
-$ smart-build status
-2 of 2 slots busy, 1 queued, 9.6 GiB memory free
-  running   1m12s  web                      npm run build  (pid 41207)
-  running     18s  api                      cargo build --release  (pid 41388)
-  #1           9s  docs                     npm run build  (pid 41455)
-```
-
-`smart-build stats` summarizes finished builds: how many waited, the median and 90th-percentile wait, and the
-projects that used the most build time. Both take `--json`.
+On a terminal, prompts and job-control signals reach the command. Interrupts and
+timeouts stop its process group before releasing the slot. Detached daemons are not
+stopped. A guard also stops the group if the wrapper dies; after SIGKILL a slot may
+be reused before that cleanup finishes.
 
 ### Options
 
@@ -139,74 +98,15 @@ With `--coalesce`, every build's output goes through a pipe and its stdin is clo
 because a later caller may still join. Programs that color only on a terminal print plain text, and the build cannot
 prompt. Leave it off for interactive work.
 
-## Using it with AI agents
+## Agents and embedding
 
-Agents need two things: the tool installed, and a rule telling them when to use it.
+Copy [the skill](skills/smart-build/SKILL.md) into your agent's skills folder, or tell
+it to prefix heavy commands with `smart-build --` and keep `--max-wait` shorter than
+its own tool timeout. Do not wrap dev servers or watchers.
 
-- **Skill:** copy [`skills/smart-build`](skills/smart-build/SKILL.md) into your agent's skills folder (for Claude Code,
-  `~/.claude/skills/smart-build/`). It covers when to use the tool, how to install it if missing, waits and exit
-  codes.
-- **Or a few lines in `AGENTS.md` / `CLAUDE.md`:**
-
-```markdown
-## Heavy commands
-Run builds, full test suites, large type checks, packaging and deploys through the machine-wide queue:
-`smart-build -- <command>` (never dev servers or watchers). If `smart-build --version` fails, install it with
-`uv tool install "git+https://github.com/your-github-username/smart-build@v0.3.1"` (Python 3.10+). Pass `--max-wait`
-shorter than your tool timeout; exit 75 means no turn yet. `smart-build status` shows what is running.
-```
-
-`uv tool install` and `pipx install` both work with the same URL, and
-`uvx --from "git+https://github.com/your-github-username/smart-build@v0.3.1" smart-build -- <cmd>` runs it without
-installing.
-
-## Embedding
-
-Tools written in Python can take a turn directly:
-
-```python
-from pathlib import Path
-from smart_build.queue import Lease, default_state_dir, prepare_state_dir, resolve_project
-
-state = prepare_state_dir(default_state_dir())
-with Lease(state=state, keys=resolve_project("/path/to/repo", None), command=["deploy"], slots=2, max_wait=600):
-    ...  # holds the project and a slot until the block ends
-```
-
-A wait that fails (`WaitTimeout` after `max_wait`, an interrupt) releases everything it held before raising.
-From any other language, run your step as the command: `smart-build -- your-tool deploy`.
-
-## Compared with other tools
-
-| | Smart Build | GNU `sem` | `nq` | `pueue` / `task-spooler` |
-|---|---|---|---|---|
-| Runs in your shell, output and exit status unchanged | yes | with `--fg` | no (log file) | no (a daemon runs it) |
-| Machine-wide cap on concurrent builds | yes | yes, per semaphore name | one at a time | yes, per queue or group |
-| One build per project or Git work tree | yes | no | per queue directory | no |
-| First come, first served | yes | not documented | yes | yes |
-| Memory-aware start | yes | no | no | no |
-| Shares duplicate queued builds | yes | no | no | no |
-| Background daemon | none | none | none | required |
-
-Use `pueue` or `task-spooler` when you want jobs to run detached from your terminal. Use Smart Build when the
-caller, whether a person, a script or an AI agent, needs the command's output and exit status in its own shell.
-
-## Benchmark
-
-`bench/compare.py` runs the same workloads through Smart Build and any other wrapper. Against the in-house queue it
-replaced, which was polling-based, on an Apple M4 Mac (10 CPUs, 24 GB) with 2 slots:
-
-| Workload | Previous queue | Smart Build |
-|---|---|---|
-| 12 builds of 0.5 s arriving 50 ms apart: total time | 11.6 s | 3.9 s |
-| Gap between one build ending and the next starting (mean) | 1,333 ms | 90 ms |
-| Pairs of builds started out of arrival order | 8 | 0 |
-| CPU used by 10 builds waiting for 8 s | 4.9 s | 1.5 s |
-| Child process left running after SIGTERM to the wrapper | yes | no |
-| Overhead of a run with nothing else queued | 165 ms | 85 ms |
-
-Both tools ran the same workloads in one session on a busy machine. Timings vary between runs; the ordering and
-cleanup results do not.
+Python callers can use `smart_build.queue.Lease` as a context manager with a prepared
+state directory and project keys from `resolve_project`. See [the design](docs/DESIGN.md)
+for locking, nesting, process supervision and limits.
 
 ## How it works
 
@@ -233,18 +133,15 @@ for an hour so that followers can replay it. Nothing else is stored.
 ## Development
 
 ```sh
-PYTHONPATH=src python3 -m unittest discover -s tests   # macOS or Linux
-./scripts/test-linux.sh                                # the same suite in Linux containers (needs Docker)
-./scripts/test-install.sh                              # installer tests: macOS, Ubuntu container, PowerShell 7
-python3 bench/compare.py --baseline "other-queue --project {project} --"
+PYTHONPATH=src python3 -m unittest discover -s tests
+./scripts/test-linux.sh       # requires Docker; may start Colima
+./scripts/test-install.sh     # macOS, Ubuntu and PowerShell; requires Docker
+python3 bench/compare.py      # isolated synthetic workloads
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Report security problems as described in [SECURITY.md](SECURITY.md).
+Tests use temporary state directories. Set `TMPDIR` to keep fixtures in a chosen
+location. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## License
 
 MIT
-
----
-
-Part of [Pareto Cybernetics](https://paretocybernetics.com/projects/smart-build/): free, private, open-source tools for working with AI agents.
