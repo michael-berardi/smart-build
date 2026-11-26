@@ -79,24 +79,29 @@ main() {
   got=$("$STAGE/bin/smart-build" --version 2>&1) || die "the new copy does not start: $got"
   [ "$got" = "smart-build $VERSION" ] || die "the new copy reports '$got', not smart-build $VERSION; nothing was changed"
 
-  # Move into place last, keeping the old venv until the new one is final.
+  # Move into place last. The old venv stays as the one rollback copy (`smart-build update --rollback`)
+  # until the new version has run a build; then the new version removes it.
+  PREVIOUS="$HOME_DIR/venv.previous"
+  restore_previous() {
+    [ ! -d "$PREVIOUS" ] || { rm -rf "$VENV"; mv "$PREVIOUS" "$VENV"; }
+  }
   rm -rf "$VENV.old"
-  [ ! -d "$VENV" ] || mv "$VENV" "$VENV.old" || die "cannot move the old install aside"
+  rm -rf "$PREVIOUS"
+  [ ! -d "$VENV" ] || mv "$VENV" "$PREVIOUS" || die "cannot move the old install aside"
   NEWPATH="$STAGE"
   # The paths are used as a sed pattern and replacement with | as the delimiter: escape the special characters.
   PAT=$(printf '%s' "$NEWPATH" | sed 's/[][\\.*^$|]/\\&/g')
   REP=$(printf '%s' "$VENV" | sed 's/[\\&|]/\\&/g')
-  mv "$STAGE" "$VENV" || { [ ! -d "$VENV.old" ] || mv "$VENV.old" "$VENV"; die "cannot move the new venv into place"; }
+  mv "$STAGE" "$VENV" || { restore_previous; die "cannot move the new venv into place"; }
   STAGE=""
   # A venv embeds its creation path in script shebangs and activate files; point them at the final path.
   for f in "$VENV/bin/"*; do
     [ -f "$f" ] && [ ! -L "$f" ] || continue
     if grep -qF "$NEWPATH" "$f" 2>/dev/null; then
-      sed "s|$PAT|$REP|g" "$f" > "$TMP/fix" || die "cannot finalize $f"
-      cat "$TMP/fix" > "$f" || die "cannot finalize $f"
+      sed "s|$PAT|$REP|g" "$f" > "$TMP/fix" || { restore_previous; die "cannot finalize $f"; }
+      cat "$TMP/fix" > "$f" || { restore_previous; die "cannot finalize $f"; }
     fi
   done
-  rm -rf "$VENV.old"
 
   # `smart-build` on PATH: a small wrapper, so the tool folder can be moved by re-running the installer.
   # Never overwrite a file this installer did not write: ours carries the marker, or (0.3.0, no marker) execs into the tool home.
@@ -105,7 +110,7 @@ main() {
   if [ -e "$SHIM" ] || [ -L "$SHIM" ]; then
     if [ -L "$SHIM" ] || { ! grep -qF "$MARK" "$SHIM" 2>/dev/null && ! grep -qF "exec \"$HOME_DIR/" "$SHIM" 2>/dev/null; }; then
       say "Left $SHIM alone: it was not written by this installer. Smart Build is installed at $VENV/bin/smart-build."
-      got=$("$VENV/bin/smart-build" --version 2>&1) || die "the installed command does not run: $got"
+      got=$("$VENV/bin/smart-build" --version 2>&1) || { restore_previous; die "the installed command does not run: $got"; }
       say "$got installed ($VENV/bin/smart-build)."
       return 0
     fi
@@ -118,7 +123,7 @@ WRAP
   chmod 755 "$SHIM.tmp.$$"
   mv -f "$SHIM.tmp.$$" "$SHIM"
 
-  got=$("$BIN_DIR/smart-build" --version 2>&1) || die "the installed command does not run: $got"
+  got=$("$BIN_DIR/smart-build" --version 2>&1) || { restore_previous; die "the installed command does not run: $got"; }
   say "$got installed ($BIN_DIR/smart-build)."
   case ":$PATH:" in *":$BIN_DIR:"*) ;; *) say "Add $BIN_DIR to your PATH:  export PATH=\"$BIN_DIR:\$PATH\"" ;; esac
   say "Next: smart-build -- <your build command>   (for example: smart-build -- npm run build)"

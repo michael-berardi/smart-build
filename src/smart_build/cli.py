@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import __version__, runner, system
+from . import __version__, runner, system, updates
 from .queue import (
     TICKET_ID,
     STATE_FOLLOWING,
@@ -45,7 +45,8 @@ FOLLOW_POLL = 0.1
 USAGE = """\
 smart-build [options] [--] command [args...]
        smart-build status [--json]
-       smart-build stats [--since DURATION] [--json]"""
+       smart-build stats [--since DURATION] [--json]
+       smart-build update [--check | --skip | --auto on|off|status | --checks on|off | --rollback]"""
 
 EPILOG = """\
 environment:
@@ -53,9 +54,10 @@ environment:
   SMART_BUILD_MEMORY_FLOOR   default for --memory-floor
   SMART_BUILD_COALESCE=1     turn on --coalesce
   SMART_BUILD_STATE_DIR      state directory (default $XDG_STATE_HOME/smart-build or ~/.local/state/smart-build)
+  SMART_BUILD_NO_UPDATE_CHECK=1  no daily release check or update notice
 
 exit status: the command's own; 124 timed out; 75 no turn within --max-wait; 2 refused (the message says why);
-126/127 the command could not be run; 128+N interrupted by signal N.
+126/127 the command could not be run; 128+N interrupted by signal N; `update --check` uses 10 for an update.
 """
 
 
@@ -113,6 +115,16 @@ def human_duration(seconds: float) -> str:
     return f"{seconds // 3600}h{seconds % 3600 // 60:02d}m"
 
 
+class VersionAction(argparse.Action):
+    """Print the version and the optional update notice; never touch a wrapped command's output."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(f"smart-build {__version__}", flush=True)
+        updates.schedule_check()
+        updates.show_notice()
+        parser.exit()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="smart-build",
@@ -124,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--version", action="version", version=f"smart-build {__version__}")
+    parser.add_argument("--version", action=VersionAction, nargs=0, help="show the version and exit")
     parser.add_argument("--project", metavar="NAME", help="extra name to serialize on (the Git work tree and directory always are)")
     parser.add_argument("--cwd", metavar="DIR", help="directory to run the command in (default: the current one)")
     parser.add_argument("--slots", type=positive_int, metavar="N", help="builds that may run at once machine-wide (default: auto)")
@@ -151,7 +163,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] in ("status", "stats"):
+    if argv and argv[0] == "update":
+        return update_main(argv[1:])
+    if argv and argv[0] == "status":
+        code = report_main("status", argv[1:])
+        if code == 0 and "--json" not in argv:
+            updates.settle_previous()
+            updates.schedule_check()
+            updates.show_notice()
+        return code
+    if argv and argv[0] == "stats":
         return report_main(argv[0], argv[1:])
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -162,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_REFUSED
     try:
         code = run_main(args, command)
+        updates.settle_previous()  # this version has run a build: the installer's rollback copy can go
         if DIE_BY:
             die_by(DIE_BY[0])
         return code
@@ -378,6 +400,42 @@ def follow(state: Path, lease: Lease, leader, say, timeout: float | None) -> int
             lease.release()
             return runner.TIMEOUT_EXIT
         time.sleep(FOLLOW_POLL)
+
+
+# ---------------------------------------------------------------- updates
+
+
+def update_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="smart-build update",
+        description="Check for, install, skip or roll back a release of Smart Build itself.",
+    )
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--check", action="store_true", help="report the latest release; exit 0 current, 10 available, 1 failed")
+    action.add_argument("--skip", action="store_true", help="hide this version's notice until a newer release")
+    action.add_argument("--rollback", action="store_true", help="restore the previous install (installer installs only)")
+    action.add_argument("--auto", choices=("on", "off", "status"), help="turn automatic updates on or off, or report them")
+    action.add_argument("--checks", choices=("on", "off"), help="turn the daily check and its notice on or off")
+    args = parser.parse_args(argv)
+    try:
+        if args.check:
+            return updates.check_command()
+        if args.skip:
+            return updates.skip_command()
+        if args.rollback:
+            print(f"smart-build: restored {updates.rollback()}")
+            return 0
+        if args.auto:
+            return updates.auto_command(args.auto)
+        if args.checks:
+            return updates.checks_command(args.checks)
+        return updates.update_command()
+    except (updates.UpdateError, OSError) as exc:
+        print(f"smart-build: {exc}", file=sys.stderr)
+        return EXIT_REFUSED
+    except KeyboardInterrupt:
+        print(file=sys.stderr)
+        return 130
 
 
 # ---------------------------------------------------------------- status and stats

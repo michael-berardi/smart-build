@@ -15,8 +15,8 @@ On macOS or Linux (including WSL):
 curl -fsSL https://github.com/michael-berardi/smart-build/releases/latest/download/install.sh | sh
 ```
 
-The installer verifies the release wheel and creates a private venv. Re-run to
-update; follow its PATH instructions. See [location overrides](scripts/install.sh).
+The installer verifies the release wheel and creates a private venv. Update with
+`smart-build update`; follow its PATH instructions. See [location overrides](scripts/install.sh).
 
 On Windows, this PowerShell command prints WSL setup instructions and returns an
 error; it does not install a native Windows build:
@@ -28,9 +28,9 @@ irm https://github.com/michael-berardi/smart-build/releases/latest/download/inst
 Or install the pinned version with uv or pipx:
 
 ```sh
-uv tool install "git+https://github.com/michael-berardi/smart-build@v0.3.2"
+uv tool install "git+https://github.com/michael-berardi/smart-build@v0.4.0"
 # or:
-pipx install "git+https://github.com/michael-berardi/smart-build@v0.3.2"
+pipx install "git+https://github.com/michael-berardi/smart-build@v0.4.0"
 ```
 
 ### From source
@@ -44,6 +44,13 @@ python3 -m venv .venv && .venv/bin/python -m pip install .
 
 The build backend may require network access. Remove `.venv` to uninstall.
 Without installing: `PYTHONPATH=src python3 -m smart_build --help`.
+
+## Updates
+
+On a terminal, `smart-build status` and `smart-build --version` say when a newer release exists.
+`smart-build update` installs it after a checksum check. Wrapped builds never check and never print a
+notice. Automatic updates are off until you run `smart-build update --auto on`.
+See [docs/updates.md](docs/updates.md).
 
 ## Use
 
@@ -144,9 +151,10 @@ systems. Each user on a machine has their own queue.
 
 ## Privacy
 
-Smart Build makes no network connections. It stores the commands it ran, their directories, timings and exit status
-in its state folder (`events.jsonl`, kept under 16 MB). Builds run with `--coalesce` also keep their output there
-for an hour so that followers can replay it. Nothing else is stored.
+No telemetry, and wrapped builds make no network connections. On a terminal, `status` and `--version` fetch the
+public latest-release record at most once a day. The request is anonymous and can be turned off with
+`SMART_BUILD_NO_UPDATE_CHECK=1`. The state folder keeps the commands Smart Build ran, with their directories,
+timings and exit status. Details are in [PRIVACY.md](PRIVACY.md).
 
 ## Development
 

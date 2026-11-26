@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # Shipped product text. scripts/ and changelog/legal files are attribution or repo
 # plumbing; the leaf's shipped set is source, skill, docs, benchmark and README.
 SHIPPED_DIRS = ("src/smart_build", "skills", "docs", "bench")
-SHIPPED_FILES = ("README.md",)
+SHIPPED_FILES = ("README.md", "PRIVACY.md")
 
 # Concrete model ids and paid-route markers that only an operator should choose.
 # A provider-adapter module, if one is ever added, may name its own provider's
@@ -102,7 +102,7 @@ def load_private_terms(path=None):
 class NeutralityTests(unittest.TestCase):
     def test_own_repository_url_exception_is_narrow(self):
         base = "https://github.com/michael-berardi/smart-build"
-        for suffix in ("", "/releases/latest/download/install.sh", "@v0.3.2"):
+        for suffix in ("", "/releases/latest/download/install.sh", "@v0.4.0"):
             self.assertNotRegex(OWN_REPO_URL.sub("", base + suffix), PERSONAL)
         for text in (
             base + "-other", base + ".evil", base.replace("smart-build", "other"),

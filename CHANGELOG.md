@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 (2026-11-26)
+
+- Update notices. On a terminal, `status` and `--version` say when a newer release exists, at most once a day
+  per version. The two lines go to stderr and never appear in `--json` output or in a wrapped build.
+- `smart-build update` installs the new release. An install.sh copy is updated by the release's own installer
+  after its SHA-256 matches `SHA256SUMS`, and keeps the old version until the new one has run once
+  (`update --rollback`). uv and pipx copies are updated by their package manager.
+  `update --check`, `--skip`, `--auto on|off|status` and `--checks on|off` round it off.
+- The check is one anonymous request to the public latest-release record, at most once every 24 hours, in a
+  detached low-priority process. It is off outside a terminal, in CI, in coding agents and inside wrapped
+  builds, and with `SMART_BUILD_NO_UPDATE_CHECK=1`. Automatic updates are off by default.
+- New PRIVACY.md and docs/updates.md.
+
 ## 0.3.2 (2026-11-15)
 
 - Stats now averages the middle pair for an even number of waits.
