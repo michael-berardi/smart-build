@@ -42,6 +42,24 @@ EXIT_REFUSED = 2
 EXIT_BUSY = 75  # EX_TEMPFAIL: did not get a turn within --max-wait
 FOLLOW_POLL = 0.1
 
+# Build tools Smart Build may run have their own telemetry. They get the privacy-default
+# off switch unless the caller set one explicitly; Smart Build itself never calls home.
+TELEMETRY_OFF = {
+    "DO_NOT_TRACK": "1",
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "ASTRO_TELEMETRY_DISABLED": "1",
+    "HF_HUB_DISABLE_TELEMETRY": "1",
+    "HOMEBREW_NO_ANALYTICS": "1",
+}
+
+
+def private_environment(env: dict[str, str] | None = None) -> dict[str, str]:
+    """Copy an environment with dependency telemetry off by default, without overriding a setting."""
+    result = dict(os.environ if env is None else env)
+    for name, value in TELEMETRY_OFF.items():
+        result.setdefault(name, value)
+    return result
+
 USAGE = """\
 smart-build [options] [--] command [args...]
        smart-build status [--json]
@@ -218,8 +236,10 @@ def run_main(args: argparse.Namespace, command: list[str]) -> int:
         say("already inside a smart-build run; running without queueing again")
         if args.dry_run:
             return 0
-        outcome = runner.run(command, cwd=keys.cwd, env={**os.environ, **({"PWD": str(keys.cwd)} if args.cwd else {})},
-                             timeout=args.timeout, grace=args.grace)
+        env = private_environment()
+        if args.cwd:
+            env["PWD"] = str(keys.cwd)
+        outcome = runner.run(command, cwd=keys.cwd, env=env, timeout=args.timeout, grace=args.grace)
         record_signal_death(outcome)
         return outcome.exit_code
 
@@ -301,7 +321,7 @@ def record_signal_death(outcome: runner.Outcome) -> None:
 
 
 def child_environment(ticket_id: str, state: Path, slots: int, weight: int, jobs: str, cwd: Path | None) -> dict[str, str]:
-    env = dict(os.environ)
+    env = private_environment()
     if cwd is not None:
         env["PWD"] = str(cwd)  # with --cwd; programs (make's $(PWD)) read it instead of asking the kernel
     share = system.jobs_share(slots, weight)

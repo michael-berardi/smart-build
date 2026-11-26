@@ -28,9 +28,9 @@ irm https://github.com/michael-berardi/smart-build/releases/latest/download/inst
 Or install the pinned version with uv or pipx:
 
 ```sh
-uv tool install "git+https://github.com/michael-berardi/smart-build@v0.3.2"
+uv tool install "git+https://github.com/michael-berardi/smart-build@v0.3.3"
 # or:
-pipx install "git+https://github.com/michael-berardi/smart-build@v0.3.2"
+pipx install "git+https://github.com/michael-berardi/smart-build@v0.3.3"
 ```
 
 ### From source
@@ -144,9 +144,25 @@ systems. Each user on a machine has their own queue.
 
 ## Privacy
 
-Smart Build makes no network connections. It stores the commands it ran, their directories, timings and exit status
-in its state folder (`events.jsonl`, kept under 16 MB). Builds run with `--coalesce` also keep their output there
-for an hour so that followers can replay it. Nothing else is stored.
+Smart Build makes no network connections while it runs. There is no telemetry, analytics, update check or unique
+identifier. Installing or updating is the only download: `install.sh` fetches `SHA256SUMS` and the release wheel
+from GitHub and checks the wheel's SHA-256 first; it sends nothing back beyond an ordinary HTTPS download.
+
+The command you wrap is yours. If it talks to a registry, API or model provider, that provider receives what your
+command sends. Smart Build adds no destination. It does set `DO_NOT_TRACK=1`, `NEXT_TELEMETRY_DISABLED=1`,
+`ASTRO_TELEMETRY_DISABLED=1`, `HF_HUB_DISABLE_TELEMETRY=1` and `HOMEBREW_NO_ANALYTICS=1` for the command unless
+you already set them.
+
+Locally, Smart Build keeps its queue and a record of commands, working directories, timings and exit statuses in
+`$XDG_STATE_HOME/smart-build` (normally `~/.local/state/smart-build`, or `SMART_BUILD_STATE_DIR`). Secret-looking
+command arguments, such as `--token VALUE` or `API_KEY=VALUE`, are masked in those records. Folders are created
+`0700` and state files `0600`. `events.jsonl` and its rotated copy are each capped at 8 MB. With `--coalesce`,
+build output is copied into the state folder's `runs/` directory and deleted after one hour; that output is
+whatever your command printed.
+
+To delete all of it, stop queued builds and remove the state folder: `rm -rf "$XDG_STATE_HOME/smart-build"` (or
+your `SMART_BUILD_STATE_DIR`). The installed tool lives in `~/.smart-build` with a shim at
+`~/.local/bin/smart-build`; remove those to uninstall.
 
 ## Development
 
