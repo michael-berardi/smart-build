@@ -8,6 +8,9 @@
 # SMART_BUILD_VERSION (pin a version, e.g. 0.2.0), SMART_BUILD_RELEASE_BASE (download base override, used by tests).
 set -eu
 
+# No dependency analytics in the one pip call we make; the wheel itself has no dependencies.
+export DO_NOT_TRACK=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_INPUT=1
+
 REPO="michael-berardi/smart-build"
 HOME_DIR="${SMART_BUILD_HOME:-$HOME/.smart-build}"
 case "$HOME_DIR" in /*) ;; *) HOME_DIR="$(pwd)/$HOME_DIR" ;; esac

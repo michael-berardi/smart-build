@@ -46,6 +46,14 @@ STATE_QUEUED = "queued"  # holds its project lock, waiting for slots
 STATE_RUNNING = "running"
 STATE_FOLLOWING = "following"  # waiting for an identical queued build to finish
 
+# Common ways a command carries a secret. The command itself still gets the original
+# arguments; only the state we persist and show in `status` is masked.
+_SECRET_OPTION = re.compile(
+    r"(?i)^--?[^=\s]*(?:token|secret|password|passwd|api[-_]?key|apikey|auth|credential)[^=\s]*(?:=.*)?$"
+)
+_SECRET_NAME = re.compile(r"(?i)(^|_)(api_?key|token|secret|password|passwd|auth|credential)($|_)")
+_URL_CREDENTIAL = re.compile(r"(?i)(://[^:/@\s]+:)[^@\s/]+(@)")
+
 
 class QueueError(RuntimeError):
     """A refusal with its cause in the message. Exit status 2."""
@@ -226,6 +234,28 @@ def resolve_project(cwd: str | None, project: str | None) -> ProjectKeys:
 
 
 # ---------------------------------------------------------------- tickets
+
+
+def redact_command(command: list[str]) -> list[str]:
+    """Mask secret-looking arguments before writing a ticket or an event to disk."""
+    masked: list[str] = []
+    hide_next = False
+    for arg in command:
+        if hide_next:
+            hide_next = False
+            if arg.startswith("-"):  # another option, not the previous option's value
+                masked.append(arg)
+                continue
+            masked.append("***")
+        elif "=" in arg and _SECRET_NAME.search(arg.split("=", 1)[0]):
+            masked.append(arg.split("=", 1)[0] + "=***")
+        elif _SECRET_OPTION.match(arg):
+            masked.append(arg.split("=", 1)[0] + ("=***" if "=" in arg else ""))
+            hide_next = "=" not in arg
+        else:
+            masked.append(arg)
+        masked[-1] = _URL_CREDENTIAL.sub(r"\1***\2", masked[-1])
+    return masked
 
 
 @dataclass
@@ -450,7 +480,7 @@ class Lease:
             state=STATE_PROJECT,
             project=self.keys.label,
             cwd=str(self.keys.cwd),
-            command=list(self.command),
+            command=redact_command(self.command),
             weight=self.weight,
             limit=self.slots,
             coalesce_key=key,

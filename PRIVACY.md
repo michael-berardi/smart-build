@@ -4,7 +4,10 @@ Smart Build has no telemetry, no account and no identifier.
 
 ## Network
 
-A wrapped build (`smart-build -- <command>`) makes no network connections of its own.
+A wrapped build (`smart-build -- <command>`) makes no network connections of its own. The command you wrap is
+yours: if it talks to a registry, API or model provider, that provider receives what your command sends. Smart
+Build sets `DO_NOT_TRACK=1`, `NEXT_TELEMETRY_DISABLED=1`, `ASTRO_TELEMETRY_DISABLED=1`,
+`HF_HUB_DISABLE_TELEMETRY=1` and `HOMEBREW_NO_ANALYTICS=1` for it unless you already set them.
 
 The update check is the only request Smart Build makes by itself. It is one anonymous GET of the
 public latest-release record of the repository in the package metadata, on GitHub. The request carries a fixed
@@ -20,7 +23,8 @@ agents or inside a wrapped build. To turn it off, set `SMART_BUILD_NO_UPDATE_CHE
 ## Files on your machine
 
 - The state folder (`$XDG_STATE_HOME/smart-build`, normally `~/.local/state/smart-build`) keeps the commands
-  Smart Build ran, with their directories, timings and exit status (`events.jsonl`, kept under 16 MB).
+  Smart Build ran, with their directories, timings and exit status (`events.jsonl`, kept under 16 MB). Secret-looking arguments
+  (`--token VALUE`, `API_KEY=VALUE`, URL credentials) are masked. Folders are 0700 and files 0600.
   Builds run with `--coalesce` also keep their output there for an hour, so that followers can replay it.
 - The cache folder (`smart-build/update.json` under `$XDG_CACHE_HOME`, `~/Library/Caches` or `~/.cache`)
   keeps the last update check and its result, the skipped version and your two update switches, in a 0600 file.

@@ -12,6 +12,12 @@
   detached low-priority process. It is off outside a terminal, in CI, in coding agents and inside wrapped
   builds, and with `SMART_BUILD_NO_UPDATE_CHECK=1`. Automatic updates are off by default.
 - New PRIVACY.md and docs/updates.md.
+- Privacy: wrapped commands get `DO_NOT_TRACK=1`, `NEXT_TELEMETRY_DISABLED=1`, `ASTRO_TELEMETRY_DISABLED=1`,
+  `HF_HUB_DISABLE_TELEMETRY=1` and `HOMEBREW_NO_ANALYTICS=1` by default; values set by the caller are kept.
+- Queue tickets, status and the event log now mask common secret-looking command arguments and URL credentials.
+- PRIVACY.md states the installer download, local storage, retention and deletion, and user-configured
+  third parties. New `tests/test_privacy.py` guards against telemetry dependencies and checks private state files.
+- Install and release scripts disable pip's version check and dependency analytics.
 
 ## 0.3.2 (2026-11-15)
 

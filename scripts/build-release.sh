@@ -16,6 +16,7 @@ stage=$(mktemp -d "${TMPDIR:-/tmp}/smart-build-release.XXXXXX")
 trap 'rm -rf "$stage"' EXIT
 python3 -m venv "$stage/venv" || { echo "build-release: python3 -m venv failed (Debian/Ubuntu: apt-get install python3-venv)" >&2; exit 1; }
 export PIP_CACHE_DIR="$stage/pip-cache"
+export DO_NOT_TRACK=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_INPUT=1
 SOURCE_DATE_EPOCH=0 "$stage/venv/bin/python3" -m pip wheel --no-deps --disable-pip-version-check --quiet --wheel-dir "$stage/dist" . \
   || { echo "build-release: building the wheel failed (pip needs network access for the build backend)" >&2; exit 1; }
 set -- "$stage/dist/"smart_build-*-py3-none-any.whl
